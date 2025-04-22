@@ -191,6 +191,7 @@ export async function getAPI(id) {
           console.error("Error fetching image for id " + id + ":", error);
       }
       service_result.id = id;
+      console.log("API CALL MADE");
       return service_result;
     }
   }catch(error) {
@@ -376,16 +377,16 @@ export async function selectHistory(email)
   for (const element of val1){
       const val2 = JSON.parse(element.services)
       // Used to Call API
-      
-    
+      /*
       const val3 = [];
       for(const element of val2){
           let service = await db.select({ info: services.address } ).from(services).where(eq(services.address, element));
           service =  await getAPI(service[0].info);
           val3.push(service);
       }
+          */
   
-      let valMap = { "date": new Date (element.date), "services": val3 };
+      let valMap = { "date": new Date (element.date), "services": val2 };
       fullArray.push(valMap);
   }
   return fullArray;

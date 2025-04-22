@@ -3,7 +3,7 @@ import { useAppContext } from "@/context"
 import { redirect } from "next/navigation";
 import RouteButton from "@/components/route_button";
 import { useState, useEffect, act } from "react";
-import { selectHistory, getUserSession, checkService, getAPI  } from "@/components/DBactions";
+import { selectHistory, getUserSession, checkService} from "@/components/DBactions";
 import Favorites from "@/components/Favorites";
 import Loading from "@/components/Loading";
 import Image from "next/image";
@@ -14,12 +14,11 @@ import { checkIsRoutePPREnabled } from "next/dist/server/lib/experimental/ppr";
 
 export default function History(){
     const current_date = new Date();
-    const {userEmail, setUserEmail} = useAppContext();
+    const {userEmail, setUserEmail, history, setHistory} = useAppContext();
     const [changed, setChanged] = useState([false, false]);
     const [collapse, setCollapse] = useState(null);
     const [data, setData] = useState([]); 
     const [futureDate, setFutureDate] = useState([])
-    const [isLoading, setLoading] = useState(true);
     const [isAPIload, setAPIload] = useState(true);
     const [error, setError] = useState(false);
     const [optionSelect, setOptionSelect] = useState([0, {services: "Select Service"}]);
@@ -29,67 +28,82 @@ export default function History(){
     const [todayActiveTab, setTodayActiveTab] = useState(0);
     const [todayActiveSection, setTodayActiveSection] = useState(0);
 
+    const [isLoading, setLoading] = useState(true);
+    const [isApiLoading, setApiLoading] = useState(true);
+    const [doFuture, setDoFuture] = useState(false);
+    const [doPast, setDoPast] = useState(false);
+
+
     // if (userEmail === null)
     //     redirect("/login");
 
     useEffect(() => {
         const fetchInfo = async () => {
             try{
-                let userName = await getUserSession();
-                if (userName != null) setUserEmail([userName[0].username, userName[0].email]);
-                else userName = [{username: userEmail[0], email: userEmail[1]}];
-                const history = await selectHistory(userName[0].email);
-                console.log("HISTORY:")
-                console.log(history);
-                const past_array =  [];
-                let upcoming_array = [];
-                const group_past_array = [];   
-                const group_future_array = [];         
-                history.map((current)=>{
-                    if (current.date >= current_date)
-                        upcoming_array.push(current);
-                    else {
-                        past_array.push(current);
-                    }
-                });
-                const sorted_past = past_array.sort((a,b) =>  a.date-b.date);
-                
-                sorted_past.map((theCurrent) => {
-                    const monthAndDay = `${theCurrent.date.getMonth() + 1}/${theCurrent.date.getDate()}`;
-                    let arrayMonthAndDay;
-                    if (group_past_array.length > 0) {
-                        arrayMonthAndDay = `${group_past_array[group_past_array.length-1][0].date.getMonth() + 1}/${group_past_array[group_past_array.length-1][0].date.getDate()}`
-                    }
-                    if (arrayMonthAndDay && monthAndDay == arrayMonthAndDay)
-                        group_past_array[group_past_array.length-1].push(theCurrent);
-                    else 
-                        group_past_array.push([theCurrent]);
-                })
-                console.log("GROUP PAST ARRAY")
-                console.log(group_past_array)
-                setData(group_past_array);
-                const sorted_future = upcoming_array.sort((a,b)=>a.date-b.date);
-                sorted_future.map((theCurrent) => {
-                    const monthAndDay = `${theCurrent.date.getMonth() + 1}/${theCurrent.date.getDate()}`;
-                    let arrayMonthAndDay;
-                    if (group_future_array.length > 0) {
-                        arrayMonthAndDay = `${group_future_array[group_future_array.length-1][0].date.getMonth() + 1}/${group_future_array[group_future_array.length-1][0].date.getDate()}`
-                    }
-                    if (arrayMonthAndDay && monthAndDay == arrayMonthAndDay)
-                        group_future_array[group_future_array.length-1].push(theCurrent);
-                    else 
-                    group_future_array.push([theCurrent]);
-                })
-                console.log("GROUP FUTURE ARRAY");
-                console.log(group_future_array);
-                setFutureDate(group_future_array);
+                if(!history){
+                    let userName = await getUserSession();
+                    if (userName != null) setUserEmail([userName[0].username, userName[0].email]);
+                    else userName = [{username: userEmail[0], email: userEmail[1]}];
+                    const history = await selectHistory(userName[0].email);
+                    console.log("HISTORY:")
+                    console.log(history);
+                    const past_array =  [];
+                    let upcoming_array = [];
+                    const group_past_array = [];   
+                    const group_future_array = [];         
+                    history.map((current)=>{
+                        if (current.date >= current_date)
+                            upcoming_array.push(current);
+                        else {
+                            past_array.push(current);
+                        }
+                    });
+                    const sorted_past = past_array.sort((a,b) =>  a.date-b.date);
                     
+                    sorted_past.map((theCurrent) => {
+                        const monthAndDay = `${theCurrent.date.getMonth() + 1}/${theCurrent.date.getDate()}`;
+                        let arrayMonthAndDay;
+                        if (group_past_array.length > 0) {
+                            arrayMonthAndDay = `${group_past_array[group_past_array.length-1][0].date.getMonth() + 1}/${group_past_array[group_past_array.length-1][0].date.getDate()}`
+                        }
+                        if (arrayMonthAndDay && monthAndDay == arrayMonthAndDay)
+                            group_past_array[group_past_array.length-1].push(theCurrent);
+                        else 
+                            group_past_array.push([theCurrent]);
+                    })
+                    console.log("GROUP PAST ARRAY")
+                    console.log(group_past_array)
+                    setData(group_past_array);
+                    const sorted_future = upcoming_array.sort((a,b)=>a.date-b.date);
+                    sorted_future.map((theCurrent) => {
+                        const monthAndDay = `${theCurrent.date.getMonth() + 1}/${theCurrent.date.getDate()}`;
+                        let arrayMonthAndDay;
+                        if (group_future_array.length > 0) {
+                            arrayMonthAndDay = `${group_future_array[group_future_array.length-1][0].date.getMonth() + 1}/${group_future_array[group_future_array.length-1][0].date.getDate()}`
+                        }
+                        if (arrayMonthAndDay && monthAndDay == arrayMonthAndDay)
+                            group_future_array[group_future_array.length-1].push(theCurrent);
+                        else 
+                        group_future_array.push([theCurrent]);
+                    })
+                    console.log("GROUP FUTURE ARRAY");
+                    console.log(group_future_array);
+                    setFutureDate(group_future_array);
+                    setHistory({group_past_array: group_past_array, group_future_array: group_future_array});
+                    if(group_past_array.length > 0) {
+                        setDoPast(true);
+                        await fetchApi(0,0,true, {group_past_array: group_past_array, group_future_array: group_future_array});}
+                    if(group_future_array.length > 0){
+                        setDoFuture(true);
+                        await fetchApi(0,0,false, {group_past_array: group_past_array, group_future_array: group_future_array});}
+            }
                 // setCollapse(Array(group_past_array.length).fill(false));
                 } catch(error) {
                     console.error("Error fetching DB:", error);
                     alert("There was an issue getting the data.");
                 } finally {
                     setLoading(false);
+                    
                 }
             }
             fetchInfo();
@@ -97,8 +111,19 @@ export default function History(){
 
 
 
+
+
+
     console.log("DATA: ")
     console.log(data);
+
+    console.log("FUTURE DATA");
+    console.log(futureDate)
+
+    console.log("THIS IS THE HISTORY")
+    if(history){
+        console.log(history);
+    }
             /*
     console.log("FUTURE")
     console.log(futureDate);
@@ -107,7 +132,59 @@ export default function History(){
     // console.log(collapse)
 
     // API function calls
-
+    const fetchApi =  async(tab,section, val, inEffect = null) => {
+        if(inEffect)
+        {
+            if(val)var ids = inEffect.group_past_array[tab][section].services;
+            else var ids = inEffect.group_future_array[tab][section].services;
+        }
+        else
+        {
+            if(val)
+            {// We get from past
+                var ids = history.group_past_array[tab][section].services   
+            }
+            else
+            {// We get from future
+                var ids = history.group_future_array[tab][section].services
+            }   
+        }
+        console.log("THIS IS THE IDS");
+        console.log(ids);
+        if(inEffect) var temp = inEffect;
+        else var temp = history;
+        const servicesInformation = [];
+        const servicesCalls = ids.map(async id => {
+            try {
+                const response = await fetch(`/api/maps/places?id=` + id );
+                if (response.ok) {
+                    const {service_result} = await response.json();
+                    if (service_result.photos)
+                    try {
+                        const img_response = await fetch(`/api/maps/places?thePhoto=` + service_result.photos[0].name);
+                        if (img_response.ok) {
+                            service_result.photoURL = img_response.url;
+                            service_result.photo_image =  img_response.url;
+                        }
+                    }catch(error) {
+                        console.error("Error fetching image for id " + id + ":", error);
+                    }
+                    service_result.id = id;
+                    return service_result;
+                }
+            }catch(error) {
+                console.error("Error fetching service " + id + ":", error);
+            }
+        });
+        const waitCalls = await Promise.all(servicesCalls);
+        waitCalls.forEach(result => { 
+            if (result) servicesInformation.push(result)
+        });
+        if(val) temp.group_past_array[tab][section].services = servicesInformation;
+        else temp.group_future_array[tab][section].services = servicesInformation;
+        setHistory(temp);
+        setApiLoading(false);
+    }
 
     // Tabbing
     const tabs = [
@@ -132,7 +209,7 @@ export default function History(){
                     </li>
                 ))}
             </ul>
-           {data.length === 0?
+           {data.length === 0 ?
             <div className="p-6 bg-gray-50 text-medium text-gray-500 dark:text-gray-400 dark:bg-gray-800 rounded-lg w-full">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No History</h3>
             </div>
@@ -152,10 +229,17 @@ export default function History(){
                 }
             </ul>
              }
-            {data.length === 0?
+            {(data.length === 0) ?
             <>
+            <h1>THIS IS WHATS DISPLAYYING</h1>
             </>
             :
+            <>
+            {(isApiLoading && isLoading && !doPast ) ?
+                <>
+                <h1>THIS IS WHATS DISPLAYYING x2</h1>
+                </>
+                :
              <div className="flex flex-row gap-4 overflow-y-auto">
              {data[pastActiveTab][pastActiveSection].services.map((service, index) => (
                         <div key ={index} className="">
@@ -203,6 +287,8 @@ export default function History(){
                     }  
                 </div>
                 }
+                </>
+                }
         </div>
         
         ),
@@ -222,7 +308,7 @@ export default function History(){
                     </li>
                 ))}
             </ul>
-           {futureDate.length === 0?
+           {futureDate.length === 0 ?
             <div className="p-6 bg-gray-50 text-medium text-gray-500 dark:text-gray-400 dark:bg-gray-800 rounded-lg w-full">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No History</h3>
             </div>
@@ -242,10 +328,15 @@ export default function History(){
                 }
             </ul>
              }
-            {futureDate.length === 0?
+            {(futureDate.length === 0) ?
             <>
             </>
             :
+            <>
+            {(isApiLoading && isLoading && !doFuture ) ?
+                <>
+                </>
+                :
              <div className="flex flex-row gap-4 overflow-y-auto">
              {futureDate[todayActiveTab][todayActiveSection].services.map((service, index) => (
                         <div key ={index} className="">
@@ -293,12 +384,14 @@ export default function History(){
                     }  
                 </div>
                 }
+                </>
+            }
         </div>
         )
     }
 
 
-    if(isLoading){
+    if(isLoading && isApiLoading){
         return (<Loading message= "Fetching History"/>)
     }
     else { 
@@ -318,6 +411,7 @@ export default function History(){
                 <h2>No Previous History. Make one to show up here!</h2>
                 <RouteButton name ={"Make Plan!"} location={"/start"} />
             </div>
+            
             </div>
             :
             <div>
